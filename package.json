@@ -1,0 +1,14 @@
+{
+  "name": "todo_app",
+  "version": "1.0.0",
+  "description": "Todo desktop application",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "larvavral",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^3.0.10"
+  }
+}

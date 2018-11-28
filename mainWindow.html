@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Todo app</title>
+    <link rel="stylesheet" href="./mainWindow.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="grey lighten-4">
+    <div class="container">
+        <div class="input-field">
+            <input type="text" id='todo-input' placeholder="What's on your mind right now?">
+        </div>
+        <br>
+        <div class="row">
+            <div class="col s4" id="todo-div">
+                <span class="flow-text">TODO</span>
+                <br>
+                <span>1 item(s)</span>
+                <br>
+                <ul id="todo-ul" class="row">
+                    <li id="todo-li-1" class="col s11 card-panel transparent valign-wrapper todo-item" draggable="true" ondragstart="drag(event)">
+                        <div class="red lighten-2 flag"></div>
+                        <span class="valign col">Clean the house</span>
+                        <a class="waves-effect waves-light btn-floating btn-small grey lighten-2 btn-delete">
+                            <i class="material-icons">delete</i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="col s4" id="in-progress-div">
+                <span class="flow-text">IN PROGRESS</span>
+                <br>
+                <span>2 item(s)</span>
+                <ul id="in-progress-ul" class="row">
+                    <li id="in-progress-li-1" class="col s11 card-panel transparent valign-wrapper todo-item" draggable="true" ondragstart="drag(event)">
+                        <div class="yellow flag"></div>
+                        <span class="valign col">Solve hackerank</span>
+                        <a class="waves-effect waves-light btn-floating btn-small grey lighten-2 btn-delete">
+                            <i class="material-icons">delete</i>
+                        </a>
+                    </li>
+                    <li id="in-progress-li-2" class="col s11 card-panel transparent valign-wrapper todo-item" draggable="true" ondragstart="drag(event)">
+                        <div class="yellow flag"></div>
+                        <span class="valign col">Contribute to Chromium</span>
+                        <a class="waves-effect waves-light btn-floating btn-small grey lighten-2 btn-delete">
+                            <i class="material-icons">delete</i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="col s4" id="done-div">
+                <span class="flow-text">DONE</span>
+                <br>
+                <span>1 item(s)</span>
+                <ul id="done-ul" class="row">
+                    <li id="done-li-1" class="col s11 card-panel transparent valign-wrapper todo-item" draggable="true" ondragstart="drag(event)">
+                        <div class="green lighten-2 flag"></div>
+                        <span class="valign col">Find something to eat</span>
+                        <a class="waves-effect waves-light btn-floating btn-small grey lighten-2 btn-delete">
+                            <i class="material-icons">delete</i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const electron = require("electron");
+        const { ipcRenderer } = electron;
+
+        const todo_input = document.getElementById("todo-input");
+
+        // Number of tasks.
+        var count = 0;
+
+        // Add the new card with "content" to columns ("todo", "in-progress", "done").
+        function add_task(content, column) {
+            const li = document.createElement("li");
+            li.className = "col s11 card-panel transparent valign-wrapper todo-item";
+            li.setAttribute("draggable", "true");
+            li.setAttribute("ondragstart", "drag(event)");
+
+            // Create color flag.
+            const flag = document.createElement("div");
+            if (column == "todo") {
+                flag.className = "red lighten-2 flag";
+            } else if (column == "in-progress") {
+                flag.className = "yellow flag";
+            } else if (column == "done") {
+                flag.className = "green lighten-2 flag";
+            } else {
+                console.log("Unsupported column type.");
+                return;
+            }
+            li.appendChild(flag);
+
+            // Create content span.
+            const task_content = document.createElement("span");
+            task_content.textContent = content;
+            task_content.className = "valign col";
+            li.appendChild(task_content);
+
+            // Remember to set the id of 'li' tag. 
+            // 'li' tag without id cannnot be draggable between columns.
+            li.id = "task-" + count;
+            count++;
+
+            // Create delete button.
+            const delete_btn = document.createElement("a");
+            delete_btn.className = "waves-effect waves-light btn-floating btn-small grey lighten-2 btn-delete";
+            delete_btn.setAttribute("onclick", "onClickDeleteBtn('" + li.id + "')");
+            const icon = document.createElement("i");
+            icon.className = "material-icons";
+            icon.textContent = "delete";
+            delete_btn.appendChild(icon);
+            li.appendChild(delete_btn);
+
+            // Add 'li' element to 'ul'.
+            const column_id = column + "-ul";
+            document.getElementById(column_id).appendChild(li);
+        }
+
+        // Load old todo tasks.
+        ipcRenderer.on("load-todo-task", function(e, task_list) {
+            for (var i = 0; i < task_list.length; i++)
+                add_task(task_list[i].content, "todo");
+        });
+
+        // Load old in progress tasks.
+        ipcRenderer.on("load-in-progress-task", function(e, task_list) {
+            for (var i = 0; i < task_list.length; i++)
+                add_task(task_list[i].content, "in-progress");
+        });
+
+        // Load old done tasks.
+        ipcRenderer.on("load-done-task", function(e, task_list) {
+            for (var i = 0; i < task_list.length; i++)
+                add_task(task_list[i].content, "done");
+        });
+
+        // Trigger event when user enter new task.
+        todo_input.addEventListener("keypress", function(e) {
+            // Just handle the 'Enter' key event.
+            if (e.keyCode != 13)
+                return;
+
+            // Send "task" to core.
+            ipcRenderer.send("new-task", todo_input.value);
+
+            // Add new item to |TODO| column.
+            add_task(todo_input.value, "todo");
+
+            // Clear the textbox.
+            todo_input.value = "";
+        });
+
+        // Functions to support drag and drop task between 3 columns.
+        function drag(e) {
+            e.dataTransfer.setData("text", e.target.id);
+        }
+
+        const div_columns = document.querySelectorAll("#todo-div, #in-progress-div, #done-div");
+        div_columns.forEach(function (div_column) {
+            div_column.addEventListener("dragover", function(e) {
+                e.preventDefault();
+            });
+        });
+
+        const todo_div = document.getElementById("todo-div");
+        todo_div.addEventListener("drop", function(e) {
+            e.preventDefault();
+            var data = e.dataTransfer.getData("text");
+            const li = document.getElementById(data);
+            li.querySelector("div").classList.remove("green", "yellow");
+            li.querySelector("div").classList.add("red", "lighten-2");
+            todo_div.querySelector("ul").appendChild(li);
+        });
+
+        const in_progress_div = document.getElementById("in-progress-div");
+        in_progress_div.addEventListener("drop", function(e) {
+            e.preventDefault();
+            var data = e.dataTransfer.getData("text");
+            const li = document.getElementById(data);
+            li.querySelector("div").classList.remove("red", "green", "lighten-2");
+            li.querySelector("div").classList.add("yellow");
+            in_progress_div.querySelector("ul").appendChild(li);
+        });
+
+        const done_div = document.getElementById("done-div");
+        done_div.addEventListener("drop", function(e) {
+            e.preventDefault();
+            var data = e.dataTransfer.getData("text");
+            const li = document.getElementById(data);
+            li.querySelector("div").classList.remove("red", "yellow");
+            li.querySelector("div").classList.add("green", "lighten-2");
+            done_div.querySelector("ul").appendChild(li);
+        });
+
+        // Event function when click on delete button of card panel.
+        function onClickDeleteBtn(id) {
+            document.getElementById(id).remove();
+        }
+    </script>
+</body>
+</html>
